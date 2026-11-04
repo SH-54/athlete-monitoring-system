@@ -1242,6 +1242,7 @@ td strong {
 }
 .chart-grid .panel {
   margin-bottom: 0;
+  min-width: 0;
 }
 .chart-wide {
   grid-column: span 2;
@@ -2778,3 +2779,38 @@ td strong {
 }
 .demo-role-bar{position:relative;z-index:40;background:#edf3e4;border-bottom:1px solid #d8e2cc;padding:10px 20px;font-size:11px;display:flex;align-items:center;gap:20px;flex-wrap:wrap}.demo-role-bar a{color:#557338;text-decoration:underline}.sync-bar{display:flex;justify-content:space-between;align-items:center;padding:6px 25px;background:#f3f7ee;color:#7b8b69;font-size:10px;border-bottom:1px solid #e1e8d8}.sync-bar button{color:#587c38;text-decoration:underline}.sync-bar.failed{background:#fff3df;color:#9a742f}@media(max-width:760px){.sync-bar{padding:8px 15px;gap:8px}.demo-role-bar{font-size:10px;gap:12px}}
 .session-template-actions{display:flex;gap:8px;flex-wrap:wrap;margin:18px 0}.session-template-actions .secondary{font-size:10px;padding:7px 9px}.session-template-actions .text-button{width:100%;margin:5px 0}
+
+/* Shared language control on authentication screens and inside the workspace. */
+.language-switcher {
+  display: inline-flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 6px;
+  width: auto;
+  min-width: 0;
+  margin: 0;
+  color: #58644f;
+}
+.language-switcher select {
+  width: auto;
+  min-width: 96px;
+  max-width: 150px;
+  padding: 7px 9px;
+  border: 1px solid #dce3d7;
+  background: #fff;
+  font-size: 12px;
+}
+.auth-language { display: flex; justify-content: flex-end; margin: -16px 0 24px; }
+.login-card .language-switcher { margin: 0; }
+.login-card { overflow-wrap: anywhere; margin: 24px 0; }
+.login-card h1 { font-size: clamp(22px, 5vw, 30px); }
+.breadcrumb { min-width: 0; }
+.breadcrumb strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.top-actions { flex-shrink: 0; }
+@media (max-width: 760px) {
+  .topbar .language-switcher select { min-width: 88px; max-width: 106px; width: auto; }
+  .topbar .language-switcher > svg { display: none; }
+  .login-card { padding: 28px 24px; }
+  .auth-language { margin-top: -6px; }
+}
+@media print { .language-switcher { display: none; } }

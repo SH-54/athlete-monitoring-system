@@ -15,7 +15,7 @@ test("daily report filters, sessions, athlete profile, language and export", asy
   await expect(
     page.getByRole("heading", { name: "李明远", exact: true }).first(),
   ).toBeVisible();
-  await expect(page.getByText("ACWR · coupled", { exact: true })).toBeVisible();
+  await expect(page.getByText("ACWR · 耦合", { exact: true })).toBeVisible();
   await page.getByRole("button", { name: "返回报告" }).click();
   await page.getByRole("button", { name: "导出报告" }).click();
   const download = page.waitForEvent("download");
@@ -100,7 +100,7 @@ test("dashboard charts render and mobile report remains usable", async ({
   ).toBeVisible();
   await expect(page.locator(".recharts-surface").first()).toBeVisible();
   await page.setViewportSize({ width: 390, height: 844 });
-  await page.getByRole("button", { name: "Menu", exact: true }).click();
+  await page.getByRole("button", { name: "菜单", exact: true }).click();
   await page
     .locator(".sidebar nav")
     .getByRole("button", { name: "每日球队报告" })

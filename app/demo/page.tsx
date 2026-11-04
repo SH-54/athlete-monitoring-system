@@ -2,6 +2,7 @@ import { serverMode } from "@/lib/runtime";
 import { redirect } from "next/navigation";
 import { demoView } from "@/lib/demo-view";
 import Monitor from "@/components/monitor";
+import DemoNavigation from "@/components/demo-navigation";
 import ConnectionRequired from "@/components/connection-required";
 import type { Role } from "@/lib/types";
 export const dynamic = "force-dynamic";
@@ -18,13 +19,7 @@ export default async function Demo({
   const { data, viewer } = demoView(role);
   return (
     <>
-      <div className="demo-role-bar">
-        <strong>架空データの役割デモ</strong>
-        <a href="/demo?role=athlete">選手本人の入力</a>
-        <a href="/demo?role=coach">コーチの閲覧・代理入力</a>
-        <a href="/demo?role=administrator">管理者</a>
-        <a href="/">通常デモ</a>
-      </div>
+      <DemoNavigation />
       <Monitor initialData={data} viewer={viewer} demo />
     </>
   );

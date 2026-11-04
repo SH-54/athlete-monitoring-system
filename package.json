@@ -10,7 +10,8 @@
     "test": "node --import tsx scripts/run-unit-tests.mjs",
     "test:e2e": "playwright test",
     "test:rls": "bash scripts/test-rls.sh",
-    "db:bundle": "node scripts/prepare-supabase.mjs"
+    "db:bundle": "node scripts/prepare-supabase.mjs",
+    "test:auth-ui": "playwright test --config playwright.auth.config.ts"
   },
   "dependencies": {
     "@supabase/ssr": "^0.8.0",

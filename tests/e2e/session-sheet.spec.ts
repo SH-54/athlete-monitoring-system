@@ -32,8 +32,8 @@ test("coach exports this session roster as CSV, fills one RPE, and imports it wi
   await card
     .getByRole("button", { name: "この練習を取り込む", exact: true })
     .click();
-  await expect(page.getByLabel("Template session")).toBeDisabled();
-  await page.getByLabel("Import file").setInputFiles({
+  await expect(page.getByLabel("入力表のセッション")).toBeDisabled();
+  await page.getByLabel("取り込みファイル").setInputFiles({
     name: "filled-session.csv",
     mimeType: "text/csv",
     buffer: Buffer.from(csv),

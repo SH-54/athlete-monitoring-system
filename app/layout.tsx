@@ -1,5 +1,8 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
+import { cookies } from "next/headers";
+import { LanguageProvider } from "@/components/language-provider";
+import { defaultLocale, intlLocales, isLocale } from "@/lib/locales";
 export const metadata: Metadata = {
   title: "ATHLOS · Athlete Monitoring",
   description:
@@ -13,10 +16,18 @@ export const viewport: Viewport = {
   initialScale: 1,
   themeColor: "#334a36",
 };
-export default function Layout({ children }: { children: React.ReactNode }) {
+export default async function Layout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  const saved = (await cookies()).get("athlos-locale")?.value;
+  const locale = isLocale(saved) ? saved : defaultLocale;
   return (
-    <html lang="zh-CN">
-      <body>{children}</body>
+    <html lang={intlLocales[locale]}>
+      <body>
+        <LanguageProvider initialLocale={locale}>{children}</LanguageProvider>
+      </body>
     </html>
   );
 }

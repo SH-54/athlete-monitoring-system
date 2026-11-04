@@ -1,8 +1,10 @@
 "use client";
 import { useEffect, useState } from "react";
+import { dictionaries, roleLabel } from "@/lib/i18n";
+import { useLanguage } from "./language-provider";
 import Invitations from "./invitations";
 import { Plus, ShieldCheck, Users } from "lucide-react";
-import type { Dataset, Role } from "@/lib/types";
+import type { Dataset, Role, Locale } from "@/lib/types";
 type Profile = { id: string; name: string; role: Role };
 type Permission = {
   id: string;
@@ -26,29 +28,28 @@ export default function Management({
 }: {
   data: Dataset;
   demo: boolean;
-  locale: string;
+  locale: Locale;
   notify: (v: string) => void;
   onUpdate: React.Dispatch<React.SetStateAction<Dataset>>;
 }) {
+  const { intlLocale } = useLanguage();
   const [profiles, setProfiles] = useState<Profile[]>([]),
     [permissions, setPermissions] = useState<Permission[]>([]),
     [audit, setAudit] = useState<Audit[]>([]),
     [busy, setBusy] = useState(false),
     [editing, setEditing] = useState(""),
     [permissionUser, setPermissionUser] = useState("");
-  const zh = locale === "zh",
-    ja = locale === "ja";
-  const label = (c: string, j: string, e: string) => (zh ? c : ja ? j : e);
+  const t = dictionaries[locale];
   async function refresh() {
     const r = await fetch("/api/manage");
-    if (!r.ok) throw new Error("Unable to load management data");
+    if (!r.ok) throw new Error(t.manageLoadError);
     const j = await r.json();
     setProfiles(j.profiles);
     setPermissions(j.permissions);
     setAudit(j.audit);
   }
   useEffect(() => {
-    if (!demo) refresh().catch((e) => notify(e.message));
+    if (!demo) refresh().catch(() => notify(t.manageLoadError));
   }, [demo]);
   async function save(value: Record<string, unknown>) {
     setBusy(true);
@@ -96,16 +97,16 @@ export default function Management({
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(value),
         });
-        if (!r.ok) throw new Error((await r.json()).error);
+        if (!r.ok) throw new Error(t.saveError);
         if (value.kind === "team" || value.kind === "athlete") {
           location.reload();
           return;
         }
         await refresh();
       }
-      notify(label("已保存", "保存しました", "Saved"));
+      notify(t.manageSaved);
     } catch (e) {
-      notify(e instanceof Error ? e.message : "Save failed");
+      notify(t.saveError);
     } finally {
       setBusy(false);
     }
@@ -117,7 +118,7 @@ export default function Management({
       <section className="panel settings-panel">
         <div className="panel-heading">
           <h2>
-            <Users size={18} /> {label("球队管理", "チーム管理", "Teams")}
+            <Users size={18} /> {t.manageTeams}
           </h2>
         </div>
         <div className="managed-teams">
@@ -126,7 +127,7 @@ export default function Management({
               <strong>{team.name}</strong>
               <span>
                 {data.athletes.filter((a) => a.team_id === team.id).length}{" "}
-                {label("人", "名", "athletes")}
+                {t.results}
               </span>
             </div>
           ))}
@@ -139,23 +140,21 @@ export default function Management({
           }}
         >
           <label>
-            {label("新球队名称", "新しいチーム名", "New team name")}
+            {t.manageNewTeamName}
             <input name="name" required maxLength={100} />
           </label>
           <button className="secondary" disabled={busy}>
             <Plus size={15} />
-            {label("添加球队", "チーム追加", "Add team")}
+            {t.manageAddTeam}
           </button>
         </form>
       </section>
       <section className="panel settings-panel">
-        <h2>{label("选手管理", "選手管理", "Athlete management")}</h2>
+        <h2>{t.manageAthleteManagement}</h2>
         <label>
-          {label("编辑或新增", "編集・新規作成", "Edit or create")}
+          {t.manageEditOrCreate}
           <select value={editing} onChange={(e) => setEditing(e.target.value)}>
-            <option value="">
-              + {label("新增球员", "選手追加", "New athlete")}
-            </option>
+            <option value="">+ {t.manageNewAthlete}</option>
             {data.athletes.map((a) => (
               <option value={a.id} key={a.id}>
                 {a.name}
@@ -181,7 +180,7 @@ export default function Management({
         >
           <div className="form-grid">
             <label>
-              {label("姓名", "名前", "Name")}
+              {t.manageName}
               <input
                 name="name"
                 defaultValue={athlete?.name}
@@ -190,7 +189,7 @@ export default function Management({
               />
             </label>
             <label>
-              {label("号码", "背番号", "Number")}
+              {t.manageNumber}
               <input
                 name="number"
                 type="number"
@@ -201,7 +200,7 @@ export default function Management({
               />
             </label>
             <label>
-              {label("位置", "ポジション", "Position")}
+              {t.managePosition}
               <select name="position" defaultValue={athlete?.position ?? "MF"}>
                 {["GK", "DF", "MF", "FW"].map((p) => (
                   <option key={p}>{p}</option>
@@ -209,7 +208,7 @@ export default function Management({
               </select>
             </label>
             <label>
-              {label("球队", "チーム", "Team")}
+              {t.team}
               <select name="team_id" defaultValue={athlete?.team_id}>
                 {data.teams.map((t) => (
                   <option value={t.id} key={t.id}>
@@ -220,37 +219,24 @@ export default function Management({
             </label>
           </div>
           <label>
-            Auth User UUID ({label("可选", "任意", "optional")})
+            {t.authUserId} ({t.manageOptional})
             <input
               name="user_id"
               defaultValue={athlete?.user_id}
               placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
             />
           </label>
-          <small className="muted">
-            {label(
-              "球队选择将添加成员关系，已有历史关系会保留。",
-              "チーム選択で所属を追加し、過去の所属は維持します。",
-              "Team selection adds membership; existing memberships are retained.",
-            )}
-          </small>
+          <small className="muted">{t.membershipHelp}</small>
           <button className="primary" disabled={busy}>
-            {label("保存球员", "選手を保存", "Save athlete")}
+            {t.manageSaveAthlete}
           </button>
         </form>
       </section>
       <section className="panel settings-panel">
         <h2>
-          <ShieldCheck size={18} />{" "}
-          {label("账户与权限", "アカウントと権限", "Accounts & roles")}
+          <ShieldCheck size={18} /> {t.manageAccountsRoles}
         </h2>
-        <p className="muted">
-          {label(
-            "先在 Supabase Auth 中邀请账户，再填写其 UUID。不会在浏览器中创建或存储密码。",
-            "Supabase Authでアカウントを招待した後、そのUUIDを登録します。ブラウザーでパスワードを管理しません。",
-            "Invite the account in Supabase Auth first, then register its UUID here. Passwords are managed by Supabase Auth.",
-          )}
-        </p>
+        <p className="muted">{t.advancedAccountsHelp}</p>
         <form
           onSubmit={(e) => {
             e.preventDefault();
@@ -264,39 +250,39 @@ export default function Management({
           }}
         >
           <label>
-            Auth User UUID
+            {t.authUserId}
             <input name="id" required pattern="[0-9a-fA-F-]{36}" />
           </label>
           <div className="form-grid">
             <label>
-              {label("姓名", "名前", "Name")}
+              {t.manageName}
               <input name="name" required maxLength={100} />
             </label>
             <label>
-              {label("权限", "権限", "Role")}
+              {t.role}
               <select name="role">
-                <option value="athlete">Athlete</option>
-                <option value="coach">Coach</option>
-                <option value="medical">Medical Staff</option>
-                <option value="administrator">Administrator</option>
+                <option value="athlete">{t.athlete}</option>
+                <option value="coach">{t.roleCoach}</option>
+                <option value="medical">{t.roleMedical}</option>
+                <option value="administrator">{t.roleAdministrator}</option>
               </select>
             </label>
           </div>
           <button className="secondary" disabled={busy}>
-            {label("保存账户", "アカウント保存", "Save account")}
+            {t.manageSaveAccount}
           </button>
         </form>
         <div className="managed-teams">
           {profiles.map((p) => (
             <div key={p.id}>
               <strong>{p.name}</strong>
-              <span>{p.role}</span>
+              <span>{roleLabel(p.role, t)}</span>
             </div>
           ))}
         </div>
       </section>
       <section className="panel settings-panel">
-        <h2>{label("工作人员授权", "スタッフ権限", "Staff permissions")}</h2>
+        <h2>{t.manageStaffPermissions}</h2>
         <form
           onSubmit={(e) => {
             e.preventDefault();
@@ -311,7 +297,7 @@ export default function Management({
           }}
         >
           <label>
-            {label("工作人员", "スタッフ", "Staff member")}
+            {t.manageStaffMember}
             <select
               name="user_id"
               required
@@ -323,30 +309,30 @@ export default function Management({
                 .filter((p) => p.role === "coach" || p.role === "medical")
                 .map((p) => (
                   <option key={p.id} value={p.id}>
-                    {p.name} · {p.role}
+                    {p.name} · {roleLabel(p.role, t)}
                   </option>
                 ))}
             </select>
           </label>
           <label>
-            {label("授权范围", "許可範囲", "Scope")}
+            {t.manageScope}
             <select key={permissionUser} name="scope" required>
-              {data.teams.map((t) => (
-                <option key={t.id} value={`team:${t.id}`}>
-                  Team · {t.name}
+              {data.teams.map((team) => (
+                <option key={team.id} value={`team:${team.id}`}>
+                  {t.team} · {team.name}
                 </option>
               ))}
               {profiles.find((p) => p.id === permissionUser)?.role ===
                 "medical" &&
                 data.athletes.map((a) => (
                   <option key={a.id} value={`athlete:${a.id}`}>
-                    Athlete · {a.name}
+                    {t.athlete} · {a.name}
                   </option>
                 ))}
             </select>
           </label>
           <button className="secondary" disabled={busy}>
-            {label("授予权限", "権限を追加", "Grant access")}
+            {t.manageGrantAccess}
           </button>
         </form>
         <div className="managed-teams">
@@ -365,36 +351,36 @@ export default function Management({
                 disabled={busy}
                 onClick={() => save({ kind: "revoke", id: p.id })}
               >
-                {label("撤销", "解除", "Revoke")}
+                {t.manageRevoke}
               </button>
             </div>
           ))}
         </div>
       </section>
       <section className="panel settings-panel audit-panel">
-        <h2>
-          {label(
-            "操作记录（最近100条）",
-            "操作履歴（最新100件）",
-            "Audit log (latest 100)",
-          )}
-        </h2>
+        <h2>{t.manageAuditLogLatest100}</h2>
         <div className="table-scroll">
           <table>
             <thead>
               <tr>
-                <th>Time</th>
-                <th>Table</th>
-                <th>Operation</th>
-                <th>Actor</th>
+                <th>{t.time}</th>
+                <th>{t.auditTable}</th>
+                <th>{t.operation}</th>
+                <th>{t.actor}</th>
               </tr>
             </thead>
             <tbody>
               {audit.map((a) => (
                 <tr key={a.id}>
-                  <td>{new Date(a.created_at).toLocaleString()}</td>
+                  <td>{new Date(a.created_at).toLocaleString(intlLocale)}</td>
                   <td>{a.table_name}</td>
-                  <td>{a.operation}</td>
+                  <td>
+                    {{
+                      INSERT: t.auditInsert,
+                      UPDATE: t.auditUpdate,
+                      DELETE: t.auditDelete,
+                    }[a.operation] ?? a.operation}
+                  </td>
                   <td>
                     {profiles.find((p) => p.id === a.actor_id)?.name ??
                       a.actor_id}
@@ -404,11 +390,7 @@ export default function Management({
             </tbody>
           </table>
         </div>
-        {!audit.length && (
-          <p className="muted">
-            {label("暂无记录", "記録なし", "No audit entries")}
-          </p>
-        )}
+        {!audit.length && <p className="muted">{t.manageNoAuditEntries}</p>}
       </section>
     </div>
   );

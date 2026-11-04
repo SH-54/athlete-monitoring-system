@@ -1,5 +1,8 @@
 "use client";
 import { useState } from "react";
+import { dictionaries, sessionTypeLabel } from "@/lib/i18n";
+import { formatMessage } from "@/lib/locales";
+import { importIssue } from "@/lib/localized-errors";
 import {
   ArrowDownToLine,
   FileSpreadsheet,
@@ -39,8 +42,7 @@ export default function Importer({
   date?: string;
   sessionId?: string;
 }) {
-  const text = (zh: string, ja: string, en: string) =>
-    locale === "zh" ? zh : locale === "ja" ? ja : en;
+  const t = dictionaries[locale];
   const [kind, setKind] = useState<ImportKind>("rpe"),
     [paste, setPaste] = useState(""),
     [preview, setPreview] = useState<ImportPreview | null>(null),
@@ -63,7 +65,7 @@ export default function Importer({
     });
   }
   function previewPaste() {
-    setFileName(text("粘贴的数据", "貼り付けデータ", "Pasted spreadsheet"));
+    setFileName(t.importPastedSpreadsheet);
     try {
       setPreview(
         previewImport(
@@ -83,7 +85,7 @@ export default function Importer({
       try {
         downloadSessionTemplate(data, templateSession, format);
       } catch (e) {
-        notify(e instanceof Error ? e.message : "Export failed");
+        notify(t.importExportError);
       }
       return;
     }
@@ -157,7 +159,7 @@ export default function Importer({
           }),
         });
         const j = await r.json();
-        if (!r.ok) throw new Error(j.error);
+        if (!r.ok) throw new Error(t.importFailed);
         saved = j.saved;
         skipped = j.skipped;
         location.reload();
@@ -191,17 +193,11 @@ export default function Importer({
           }
           return next;
         });
-      notify(
-        text(
-          `已保存 ${saved} 条，保留原记录 ${skipped} 条。`,
-          `保存 ${saved} 件・既存記録を保持 ${skipped} 件。`,
-          `Saved ${saved}; kept ${skipped} existing records.`,
-        ),
-      );
+      notify(formatMessage(t.importSaved, { saved, skipped }));
       setPreview(null);
       setPaste("");
     } catch (e) {
-      notify(e instanceof Error ? e.message : "Import failed");
+      notify(t.importFailed);
     } finally {
       setBusy(false);
     }
@@ -210,26 +206,20 @@ export default function Importer({
     <section className="panel settings-panel import-panel">
       <div className="panel-heading">
         <div>
-          <span className="eyebrow">STAFF PROXY ENTRY</span>
+          <span className="eyebrow">{t.proxyEntry}</span>
           <h2>
             <FileSpreadsheet size={18} />
-            {text("批量代理填报", "代理入力・一括取り込み", "Bulk proxy entry")}
+            {t.importBulkProxyEntry}
           </h2>
         </div>
         <span className="pill neutral">CSV / XLSX / TSV</span>
       </div>
-      <p className="muted">
-        {text(
-          "每一行对应一名球员、一天、一次训练。三练请分别填写三行。默认保留已提交记录；导入前请先检查预览。",
-          "1行が「1選手・1日・1セッション」です。3部練では3行に分けます。提出済み記録は初期設定で保持し、保存前にプレビューを確認します。",
-          "One row = one athlete, date and session. Use three rows for three sessions. Existing submissions are preserved by default; review the preview before saving.",
-        )}
-      </p>
+      <p className="muted">{t.importHelp}</p>
       <div className="import-options">
         <label>
-          {text("导入类型", "取り込み種別", "Import type")}
+          {t.importImportType}
           <select
-            aria-label="Import type"
+            aria-label={t.importImportType}
             value={kind}
             onChange={(e) => {
               setKind(e.target.value as ImportKind);
@@ -237,21 +227,15 @@ export default function Importer({
               setPaste("");
             }}
           >
-            <option value="rpe">
-              {text(
-                "训练后 RPE（按训练）",
-                "練習後RPE（セッション別）",
-                "Post-training RPE (per session)",
-              )}
-            </option>
-            {<option value="wellness">Morning Wellness</option>}
+            <option value="rpe">{t.importPosttrainingRPEPerSession}</option>
+            {<option value="wellness">{t.morning}</option>}
           </select>
         </label>
         {kind === "rpe" && (
           <label>
-            {text("输入表的训练", "入力表のセッション", "Template session")}
+            {t.importTemplateSession}
             <select
-              aria-label="Template session"
+              aria-label={t.importTemplateSession}
               value={templateSession}
               disabled={!!sessionId}
               onChange={(e) => setTemplateSession(e.target.value)}
@@ -263,7 +247,8 @@ export default function Importer({
                 .filter((s) => s.date === date)
                 .map((s) => (
                   <option key={s.id} value={s.id}>
-                    {s.code} · {s.type} · {s.start_time.slice(0, 5)}
+                    {s.code} · {sessionTypeLabel(s.type, t)} ·{" "}
+                    {s.start_time.slice(0, 5)}
                   </option>
                 ))}
             </select>
@@ -275,41 +260,23 @@ export default function Importer({
           onClick={() => template("xlsx")}
         >
           <ArrowDownToLine size={15} />
-          Excel {text("模板", "テンプレート", "template")}
+          Excel {t.importTemplate}
         </button>
         <button
           type="button"
           className="secondary"
           onClick={() => template("csv")}
         >
-          CSV {text("模板", "テンプレート", "template")}
+          CSV {t.importTemplate}
         </button>
       </div>
-      {kind === "rpe" && (
-        <p className="setup-note">
-          {text(
-            "输入表含该训练全部目标球员。pending 行仅填写 RPE 即转为已参加；RPE 留空则保留未提交。已有记录会保留原值，导入默认不覆盖。",
-            "入力表にはその練習の対象選手全員が入ります。pending 行はRPEを入力すると参加済みになり、空欄のままなら未提出として保持します。既存記録は元の値を出力し、取り込み時も初期設定で保護します。",
-            "The sheet includes the full assigned roster. Fill RPE on pending rows to submit; leave it blank to keep pending. Existing values are exported and protected by default.",
-          )}
-        </p>
-      )}
-      <p className="import-help">
-        {text(
-          "请使用模板英文表头。可用 athlete_id，或 athlete_number + team_id/team 精确匹配。date 请用文本 YYYY-MM-DD；session_id 或 session_code + 日期 + 球队定位训练。支持最多500行、2MB，XLSX仅读取第一张工作表，不接受公式。",
-          "テンプレートの英語列名を使用します。athlete_id、または背番号 athlete_number と team_id/team で選手を特定します。date は文字列 YYYY-MM-DD、session_id または session_code＋日付＋チームでセッションを特定します。最大500行・2MB。XLSXは先頭シートの値のみ対応し、数式は受け付けません。",
-          "Use template English headers. Identify athletes by athlete_id or athlete_number + exact team_id/team. Use text YYYY-MM-DD dates and session_id or session_code + date + team. Maximum 500 rows / 2 MB. XLSX reads the first sheet, values only; formulas are rejected.",
-        )}
-      </p>
+      {kind === "rpe" && <p className="setup-note">{t.sessionTemplateHelp}</p>}
+      <p className="import-help">{t.importFormatHelp}</p>
       <div className="import-inputs">
         <label>
-          {text(
-            "选择 Excel / CSV 文件",
-            "Excel / CSV ファイル",
-            "Choose Excel / CSV file",
-          )}
+          {t.importChooseExcelCSVFile}
           <input
-            aria-label="Import file"
+            aria-label={t.importFile}
             type="file"
             accept=".csv,.xlsx,.tsv"
             onChange={async (e) => {
@@ -340,13 +307,9 @@ export default function Importer({
           />
         </label>
         <label>
-          {text(
-            "或从 Excel / Google Sheets 复制并粘贴（含表头）",
-            "または Excel / Google Sheets から列名付きで貼り付け",
-            "Or paste from Excel / Google Sheets including headers",
-          )}
+          {t.importOrPasteFromExcelGoogleSheetsIncluding}
           <textarea
-            aria-label="Paste spreadsheet"
+            aria-label={t.importPaste}
             rows={5}
             value={paste}
             onChange={(e) => {
@@ -363,34 +326,29 @@ export default function Importer({
           disabled={!paste.trim()}
         >
           <Upload size={15} />
-          {text("预览粘贴数据", "貼り付けをプレビュー", "Preview pasted data")}
+          {t.importPreviewPastedData}
         </button>
       </div>
       {preview && (
         <div className="import-preview">
           <div className="panel-heading">
             <h3>
-              {text("导入预览", "取り込みプレビュー", "Import preview")} ·{" "}
-              {fileName}
+              {t.importImportPreview} · {fileName}
             </h3>
             <span>
-              {count} {text("条", "件", "rows")}
+              {count} {t.importRows}
             </span>
           </div>
           {!!preview.skippedRows?.length && (
             <details className="auth-message">
               <summary>
-                {preview.skippedRows.length}{" "}
-                {text(
-                  "条未填写RPE，保持未提交。",
-                  "行はRPE未記入のため取り込みません（未提出を保持）。",
-                  "blank RPE rows remain pending.",
-                )}
+                {preview.skippedRows.length} {t.importBlankRPERowsRemainPending}
               </summary>
               <ul>
                 {preview.skippedRows.map((r) => (
                   <li key={r.row}>
-                    Row {r.row}: {r.message}
+                    {t.importRow}
+                    {r.row}: {importIssue(r.message, t)}
                   </li>
                 ))}
               </ul>
@@ -400,16 +358,12 @@ export default function Importer({
             <div className="import-errors" role="alert">
               <strong>
                 <TriangleAlert size={16} />
-                {text(
-                  "请修正所有错误后再保存。没有记录被导入。",
-                  "すべてのエラーを修正してください。まだ保存されていません。",
-                  "Fix all errors before saving. No records have been imported.",
-                )}
+                {t.importFixAllErrorsBeforeSavingNoRecords}
               </strong>
               <ul>
                 {preview.errors.map((e, i) => (
                   <li key={i}>
-                    {text("行", "行", "Row")} {e.row}: {e.message}
+                    {t.importRow} {e.row}: {importIssue(e.message, t)}
                   </li>
                 ))}
               </ul>
@@ -419,13 +373,13 @@ export default function Importer({
             <table>
               <thead>
                 <tr>
-                  <th>Row</th>
-                  <th>{text("球员", "選手", "Athlete")}</th>
-                  <th>{text("日期", "日付", "Date")}</th>
-                  <th>{text("训练", "セッション", "Session")}</th>
-                  <th>RPE / Wellness</th>
-                  <th>{text("时长", "時間", "Minutes")}</th>
-                  <th>{text("保存操作", "保存動作", "Action")}</th>
+                  <th>{t.importRow}</th>
+                  <th>{t.athlete}</th>
+                  <th>{t.date}</th>
+                  <th>{t.importSession}</th>
+                  <th>RPE / {t.wellness}</th>
+                  <th>{t.importMinutes}</th>
+                  <th>{t.importAction}</th>
                 </tr>
               </thead>
               <tbody>
@@ -437,24 +391,16 @@ export default function Importer({
                     <td>{i.session}</td>
                     <td>
                       {"rpe" in i.value
-                        ? `${i.value.rpe ?? "—"} · ${i.value.status}`
-                        : `${i.value.sleep_hours} h · fatigue ${i.value.fatigue}`}
+                        ? `${i.value.rpe ?? "—"} · ${t[i.value.status]}`
+                        : `${i.value.sleep_hours} h · ${t.fatigue} ${i.value.fatigue}`}
                     </td>
                     <td>{"minutes" in i.value ? i.value.minutes : "—"}</td>
                     <td>
                       {i.existing
                         ? overwrite
-                          ? text(
-                              "覆盖已有记录",
-                              "既存を上書き",
-                              "Overwrite existing",
-                            )
-                          : text("保留已有记录", "既存を保持", "Keep existing")
-                        : text(
-                            "新增 / 补全",
-                            "新規・未入力を補完",
-                            "New / complete pending",
-                          )}
+                          ? t.importOverwriteExisting
+                          : t.importKeepExisting
+                        : t.importNewCompletePending}
                     </td>
                   </tr>
                 ))}
@@ -467,18 +413,11 @@ export default function Importer({
               checked={overwrite}
               onChange={(e) => setOverwrite(e.target.checked)}
             />
-            <span>
-              {text(
-                "覆盖已有提交记录（请确认后选择）",
-                "提出済み記録を上書きする（必要な場合のみ）",
-                "Overwrite existing submissions (explicit opt-in)",
-              )}
-            </span>
+            <span>{t.importOverwriteExistingSubmissionsExplicitOptin}</span>
           </label>
           <p className="muted">
-            {saving} {text("条将保存", "件を保存", "to save")} ·{" "}
-            {count - saving} {text("条保留", "件を保持", "kept")} ·{" "}
-            {preview.errors.length} {text("个错误", "件のエラー", "errors")}
+            {saving} {t.importToSave} · {count - saving} {t.importKept} ·{" "}
+            {preview.errors.length} {t.importErrors}
           </p>
           <button
             type="button"
@@ -487,13 +426,7 @@ export default function Importer({
             onClick={apply}
           >
             <CheckCircle2 size={16} />
-            {busy
-              ? text("保存中…", "保存中…", "Saving…")
-              : text(
-                  "确认并保存导入",
-                  "確認して取り込みを保存",
-                  "Confirm and save import",
-                )}
+            {busy ? t.loading : t.importConfirmAndSaveImport}
           </button>
         </div>
       )}

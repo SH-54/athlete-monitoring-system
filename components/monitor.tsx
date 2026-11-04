@@ -1,6 +1,8 @@
 "use client";
 import { useEffect, useMemo, useState, useRef } from "react";
 import Management from "./management";
+import LanguageSwitcher from "./language-switcher";
+import { useLanguage } from "./language-provider";
 import Importer from "./importer";
 import { downloadSessionTemplate } from "@/lib/session-template";
 import {
@@ -37,7 +39,6 @@ import {
   TriangleAlert,
   CheckCircle2,
   MoreHorizontal,
-  Globe,
 } from "lucide-react";
 import { createBrowserClient } from "@supabase/ssr";
 import dynamic from "next/dynamic";
@@ -51,7 +52,7 @@ import type {
   Viewer,
   Wellness,
 } from "@/lib/types";
-import { dictionaries } from "@/lib/i18n";
+import { type Labels, roleLabel, sessionTypeLabel } from "@/lib/i18n";
 import {
   alerts,
   dailyLoad,
@@ -65,8 +66,12 @@ import {
 } from "@/lib/analytics";
 const Charts = dynamic(() => import("./charts"), {
   ssr: false,
-  loading: () => <div className="panel chart">Loading charts…</div>,
+  loading: ChartsLoading,
 });
+function ChartsLoading() {
+  const { t } = useLanguage();
+  return <div className="panel chart">{t.chartsLoading}</div>;
+}
 type View =
   | "report"
   | "overview"
@@ -84,10 +89,6 @@ const icons = {
   medical: Stethoscope,
   settings: Settings2,
 };
-const number = (n: number | null, digits = 0) =>
-  n === null
-    ? "—"
-    : n.toLocaleString(undefined, { maximumFractionDigits: digits });
 export default function Monitor({
   initialData,
   demo,
@@ -97,9 +98,8 @@ export default function Monitor({
   demo: boolean;
   viewer: Viewer;
 }) {
+  const { locale, t, number, intlLocale } = useLanguage(viewer.id);
   const [data, applyData] = useState(initialData),
-    [locale, setLocale] = useState<Locale>("zh"),
-    [localeReady, setLocaleReady] = useState(false),
     [view, setView] = useState<View>(
       viewer.role === "athlete" ? "input" : "report",
     ),
@@ -173,32 +173,13 @@ export default function Monitor({
       window.removeEventListener("athlos-refresh", sync);
     };
   }, [demo, viewer.id, viewer.role]);
-  const t = dictionaries[locale];
   const medical = viewer.role === "administrator" || viewer.role === "medical";
   const canSeePain = medical || viewer.role === "coach";
   const staff = viewer.role === "administrator" || viewer.role === "coach";
   useEffect(() => {
-    try {
-      const stored = localStorage.getItem(`athlos-locale:${viewer.id}`);
-      if (stored && ["zh", "ja", "en"].includes(stored))
-        setLocale(stored as Locale);
-    } catch {
-      /* Some private browsers disable storage. */
-    }
-    setLocaleReady(true);
     if ("serviceWorker" in navigator)
       navigator.serviceWorker.register("/sw.js").catch(() => {});
-  }, [viewer.id]);
-  useEffect(() => {
-    document.documentElement.lang = locale === "zh" ? "zh-CN" : locale;
-    if (localeReady) {
-      try {
-        localStorage.setItem(`athlos-locale:${viewer.id}`, locale);
-      } catch {
-        /* Preference storage is optional. */
-      }
-    }
-  }, [locale, localeReady, viewer.id]);
+  }, []);
   useEffect(() => {
     if (!toast) return;
     const id = setTimeout(() => setToast(""), 4500);
@@ -220,13 +201,13 @@ export default function Monitor({
               String(a.number).includes(search)) &&
             (alertFilter === "all" ||
               (alertFilter === "flagged"
-                ? alerts(data, a, date).length > 0
+                ? alerts(data, a, date, t).length > 0
                 : flagLevel(data, a, date) === alertFilter)),
         )
         .sort((a, b) => {
           const n =
             sort === "name"
-              ? a.name.localeCompare(b.name)
+              ? a.name.localeCompare(b.name, intlLocale)
               : sort === "load"
                 ? (dailyLoad(data, a.id, date) ?? -1) -
                   (dailyLoad(data, b.id, date) ?? -1)
@@ -257,7 +238,7 @@ export default function Monitor({
     );
   };
   const rpeCount = base.filter(rpeDone).length;
-  const flagged = base.filter((a) => alerts(data, a, date).length > 0);
+  const flagged = base.filter((a) => alerts(data, a, date, t).length > 0);
   const known = base
     .map((a) => dailyLoad(data, a.id, date))
     .filter((x) => x !== null) as number[];
@@ -292,8 +273,7 @@ export default function Monitor({
       body: JSON.stringify(payload),
     });
     if (!response.ok) {
-      const j = await response.json();
-      throw new Error(j.error || t.saveError);
+      throw new Error(t.saveError);
     }
   }
   function setViewTo(v: View) {
@@ -342,7 +322,7 @@ export default function Monitor({
               : risk === "missing"
                 ? t.missingFlag
                 : t.noFlag,
-        alerts: alerts(data, a, date)
+        alerts: alerts(data, a, date, t)
           .map((x) => `${alertLabel(x.kind)} (${x.value})`)
           .join("; "),
       };
@@ -350,7 +330,7 @@ export default function Monitor({
         ? [
             {
               ...common,
-              session: "TOTAL",
+              session: t.total,
               minutes: assigned(a).reduce((n, s) => {
                 const e = data.entries.find(
                   (e) => e.session_id === s.id && e.athlete_id === a.id,
@@ -485,7 +465,7 @@ export default function Monitor({
   return (
     <div className="app-shell" data-demo={demo ? "true" : "false"}>
       <aside className={`sidebar ${mobile ? "open" : ""}`}>
-        <a className="brand" href="/" aria-label="ATHLOS home">
+        <a className="brand" href="/" aria-label={t.teamHome}>
           <span className="brand-icon">A</span>ATHLOS
           <span className="brand-dot">®</span>
         </a>
@@ -495,7 +475,7 @@ export default function Monitor({
           </div>
           <div>
             <strong>{data.organization?.name ?? "ATHLOS FC"}</strong>
-            <span>Performance department</span>
+            <span>{t.department}</span>
           </div>
           <ChevronDown size={15} />
         </div>
@@ -535,11 +515,11 @@ export default function Monitor({
         <div className="sidebar-bottom">
           <div className="sidebar-card">
             <div className="live-dot" />
-            <span>PERFORMANCE, CONNECTED.</span>
+            <span>{t.performanceConnected}</span>
             <p>
-              Small insights.
+              {t.smallInsights}
               <br />
-              Stronger together.
+              {t.strongerTogether}
             </p>
             <Activity size={37} />
           </div>
@@ -547,11 +527,7 @@ export default function Monitor({
             <span className="profile-avatar">{viewer.name.slice(0, 1)}</span>
             <div>
               <strong>{viewer.name}</strong>
-              <span>
-                {viewer.role === "administrator"
-                  ? "Administrator"
-                  : viewer.role}
-              </span>
+              <span>{roleLabel(viewer.role, t)}</span>
             </div>
             {!demo && (
               <button
@@ -584,15 +560,11 @@ export default function Monitor({
             className={`sync-bar ${syncFailed ? "failed" : ""}`}
             role={syncFailed ? "status" : undefined}
           >
-            <span>
-              {syncFailed
-                ? "同期に失敗しました。表示中のデータは最新でない可能性があります。"
-                : "60秒ごとにチームの記録を同期します。"}
-            </span>
+            <span>{syncFailed ? t.syncError : t.syncHelp}</span>
             <button
               onClick={() => window.dispatchEvent(new Event("athlos-refresh"))}
             >
-              今すぐ更新
+              {t.refreshNow}
             </button>
           </div>
         )}
@@ -600,7 +572,7 @@ export default function Monitor({
           <div className="breadcrumb">
             <button
               className="mobile-menu icon-button"
-              aria-label="Menu"
+              aria-label={t.menu}
               onClick={() => setMobile(!mobile)}
             >
               <Menu size={22} />
@@ -612,19 +584,9 @@ export default function Monitor({
           <div className="top-actions">
             <span className="system-status">
               <span className="live-dot" />
-              {demo ? "DEMO MODE" : "CONNECTED"}
+              {demo ? t.demoMode : t.connected}
             </span>
-            <Globe size={16} />
-            <select
-              aria-label="Language"
-              disabled={!localeReady}
-              value={locale}
-              onChange={(e) => setLocale(e.target.value as Locale)}
-            >
-              <option value="zh">简体中文</option>
-              <option value="ja">日本語</option>
-              <option value="en">English</option>
-            </select>
+            <LanguageSwitcher />
             <span className="top-divider" />
             <button
               className="icon-button notification"
@@ -645,12 +607,12 @@ export default function Monitor({
             <div>
               <div className="eyebrow page-eyebrow">
                 <span />
-                ATHLETE MONITORING <span className="slash">/</span>{" "}
+                {t.appName} <span className="slash">/</span>{" "}
                 {selected
-                  ? "ATHLETE PROFILE"
+                  ? t.athleteProfile
                   : view === "report"
-                    ? "DAILY SNAPSHOT"
-                    : view.toUpperCase()}
+                    ? t.dailySnapshot
+                    : t[view]}
               </div>
               <h1>
                 {selected
@@ -692,16 +654,12 @@ export default function Monitor({
                       }}
                     >
                       <Upload size={16} />
-                      {locale === "zh"
-                        ? "批量导入"
-                        : locale === "ja"
-                          ? "一括取り込み"
-                          : "Bulk import"}
+                      {t.bulkImport}
                     </button>
                   )}
                   <div className="date-switch">
                     <button
-                      aria-label="Previous day"
+                      aria-label={t.previousDay}
                       onClick={() => changeDate(shiftDate(date, -1))}
                     >
                       <ChevronLeft size={16} />
@@ -716,7 +674,7 @@ export default function Monitor({
                       }
                     />
                     <button
-                      aria-label="Next day"
+                      aria-label={t.nextDay}
                       onClick={() => changeDate(shiftDate(date, 1))}
                     >
                       <ChevronRight size={16} />
@@ -856,7 +814,7 @@ export default function Monitor({
                           ))}
                         </select>
                         <select
-                          aria-label="Position"
+                          aria-label={t.managePosition}
                           value={position}
                           onChange={(e) => setPosition(e.target.value)}
                         >
@@ -967,7 +925,7 @@ export default function Monitor({
                               pain = data.pain.filter(
                                 (p) => p.athlete_id === a.id && p.date === date,
                               ),
-                              aa = alerts(data, a, date),
+                              aa = alerts(data, a, date, t),
                               sessions = assigned(a);
                             const es = sessions.map((s) =>
                               data.entries.find(
@@ -1327,7 +1285,7 @@ export default function Monitor({
                               </small>
                             </strong>
                             <p>
-                              {alerts(data, a, date)
+                              {alerts(data, a, date, t)
                                 .map((x) => `${alertLabel(x.kind)} ${x.value}`)
                                 .join(" · ")}
                             </p>
@@ -1374,7 +1332,7 @@ export default function Monitor({
                             <div>
                               <strong>
                                 {s.code}
-                                <span>{s.type}</span>
+                                <span>{sessionTypeLabel(s.type, t)}</span>
                               </strong>
                               <small>
                                 {s.start_time.slice(0, 5)} –{" "}
@@ -1537,7 +1495,9 @@ export default function Monitor({
                       .map((s) => (
                         <section key={s.id} className="panel session-card">
                           <div className="panel-heading">
-                            <span className="pill success">{s.type}</span>
+                            <span className="pill success">
+                              {sessionTypeLabel(s.type, t)}
+                            </span>
                             <strong>{s.code}</strong>
                             <button
                               className="text-button"
@@ -1546,15 +1506,11 @@ export default function Monitor({
                                 setModal("session");
                               }}
                             >
-                              {locale === "zh"
-                                ? "编辑"
-                                : locale === "ja"
-                                  ? "編集"
-                                  : "Edit"}
+                              {t.edit}
                             </button>
                           </div>
                           <h2>
-                            {s.type} {t.activity}
+                            {sessionTypeLabel(s.type, t)} {t.activity}
                           </h2>
                           <p>
                             <Clock3 size={16} />
@@ -1574,20 +1530,11 @@ export default function Monitor({
                                   try {
                                     downloadSessionTemplate(data, s.id, "csv");
                                   } catch (e) {
-                                    notify(
-                                      e instanceof Error
-                                        ? e.message
-                                        : t.saveError,
-                                    );
+                                    notify(t.importExportError);
                                   }
                                 }}
                               >
-                                CSV{" "}
-                                {locale === "zh"
-                                  ? "输入表"
-                                  : locale === "ja"
-                                    ? "入力表"
-                                    : "input sheet"}
+                                CSV {t.inputSheet}
                               </button>
                               <button
                                 className="secondary"
@@ -1595,20 +1542,11 @@ export default function Monitor({
                                   try {
                                     downloadSessionTemplate(data, s.id, "xlsx");
                                   } catch (e) {
-                                    notify(
-                                      e instanceof Error
-                                        ? e.message
-                                        : t.saveError,
-                                    );
+                                    notify(t.importExportError);
                                   }
                                 }}
                               >
-                                Excel{" "}
-                                {locale === "zh"
-                                  ? "输入表"
-                                  : locale === "ja"
-                                    ? "入力表"
-                                    : "input sheet"}
+                                Excel {t.inputSheet}
                               </button>
                               <button
                                 className="text-button"
@@ -1617,11 +1555,7 @@ export default function Monitor({
                                   setImportOpen(true);
                                 }}
                               >
-                                {locale === "zh"
-                                  ? "导入此训练"
-                                  : locale === "ja"
-                                    ? "この練習を取り込む"
-                                    : "Import this session"}
+                                {t.importSessionAction}
                               </button>
                             </div>
                           )}
@@ -1691,7 +1625,7 @@ export default function Monitor({
           )}
         </main>
         <footer className="app-footer">
-          <Activity size={13} /> ATHLOS <span>THE EVERYDAY ADVANTAGE.</span>
+          <Activity size={13} /> ATHLOS <span>{t.everydayAdvantage}</span>
           <span className="footer-right">{t.security}</span>
         </footer>
       </div>
@@ -1705,13 +1639,7 @@ export default function Monitor({
             onClick={(e) => e.stopPropagation()}
           >
             <div className="panel-heading">
-              <h2 id="import-heading">
-                {locale === "zh"
-                  ? "批量导入"
-                  : locale === "ja"
-                    ? "一括取り込み"
-                    : "Bulk import"}
-              </h2>
+              <h2 id="import-heading">{t.bulkImport}</h2>
               <button
                 className="icon-button"
                 aria-label={t.close}
@@ -1759,7 +1687,6 @@ export default function Monitor({
   );
 }
 
-type Labels = typeof dictionaries.zh;
 type Update = React.Dispatch<React.SetStateAction<Dataset>>;
 type Send = (path: string, payload: unknown) => Promise<void>;
 function AthleteDetail({
@@ -1775,6 +1702,7 @@ function AthleteDetail({
   t: Labels;
   medical: boolean;
 }) {
+  const { number } = useLanguage();
   const [start, setStart] = useState(shiftDate(date, -27)),
     [end, setEnd] = useState(date);
   const values = Array.from({ length: 42 }, (_, i) =>
@@ -1782,7 +1710,7 @@ function AthleteDetail({
   );
   const metrics = loadMetrics(values, data.settings.acwr);
   const w = data.wellness.find((w) => w.athlete_id === a.id && w.date === date);
-  const aa = alerts(data, a, date);
+  const aa = alerts(data, a, date, t);
   const weekday = new Date(date + "T12:00:00Z").getUTCDay();
   const week = periodLoad(
       data,
@@ -1847,15 +1775,18 @@ function AthleteDetail({
         {[
           { label: t.weekLoad, value: week.total, missing: week.missing },
           { label: t.monthLoad, value: month.total, missing: month.missing },
-          { label: "Rolling 7-day", value: metrics.acute },
-          { label: "Rolling 28-day", value: metrics.chronic },
-          { label: "Monotony", value: metrics.monotony },
-          { label: "Strain", value: metrics.strain },
+          { label: t.rolling7, value: metrics.acute },
+          { label: t.rolling28, value: metrics.chronic },
+          { label: t.monotony, value: metrics.monotony },
+          { label: t.strain, value: metrics.strain },
           {
             label: "EWMA 7 / 28",
             text: `${number(metrics.ewma7, 1)} / ${number(metrics.ewma28, 1)}`,
           },
-          { label: `ACWR · ${data.settings.acwr}`, value: metrics.acwr },
+          {
+            label: `ACWR · ${data.settings.acwr === "coupled" ? t.coupled : data.settings.acwr === "uncoupled" ? t.uncoupled : "EWMA"}`,
+            value: metrics.acwr,
+          },
         ].map((x) => (
           <section key={x.label} className="panel metric">
             <small>{x.label}</small>
@@ -1939,12 +1870,7 @@ function AthleteDetail({
         </div>
       </section>
       <p className="footnote">{t.note}</p>
-      <p className="footnote">
-        ACWR coupled = (7-day sum / 7) ÷ (28-day sum / 28). Uncoupled = (7-day
-        sum / 7) ÷ (preceding 28-day sum / 28). EWMA λ = 2 / (N + 1),
-        initialized at first observation, minimum N days. Monotony = 7-day mean
-        / population SD; zero SD → —. Strain = weekly load × monotony.
-      </p>
+      <p className="footnote">{t.calculationHelp}</p>
     </>
   );
 }
@@ -1967,6 +1893,7 @@ function CheckIn({
   onUpdate: Update;
   notify: (s: string) => void;
 }) {
+  const { number } = useLanguage();
   const allowed = data.athletes.filter(
     (a) =>
       viewer.role === "administrator" ||
@@ -2100,7 +2027,7 @@ function CheckIn({
       <section className="panel checkin">
         <div className="panel-heading">
           <div>
-            <span className="eyebrow">DAILY CHECK-IN</span>
+            <span className="eyebrow">{t.dailyCheckIn}</span>
             <h2>{tab === "wellness" ? t.morning : t.postTraining}</h2>
           </div>
           <Sun size={26} className="muted" />
@@ -2188,8 +2115,8 @@ function CheckIn({
                       </span>
                     </div>
                     <p>
-                      {s.type} · {s.start_time.slice(0, 5)}–
-                      {s.end_time.slice(0, 5)}
+                      {sessionTypeLabel(s.type, t)} · {s.start_time.slice(0, 5)}
+                      –{s.end_time.slice(0, 5)}
                     </p>
                     <p>
                       {t.defaultMinutes}: {s.duration} min
@@ -2377,7 +2304,8 @@ function CheckIn({
                   </option>
                   {sessions.map((s) => (
                     <option key={s.id} value={s.id}>
-                      {s.code} · {s.type} · {s.start_time.slice(0, 5)}
+                      {s.code} · {sessionTypeLabel(s.type, t)} ·{" "}
+                      {s.start_time.slice(0, 5)}
                     </option>
                   ))}
                 </select>
@@ -2447,7 +2375,7 @@ function CheckIn({
                 </fieldset>
               )}
               <div className="formula-box">
-                {selected?.code ?? "—"} · sRPE Load ={" "}
+                {selected?.code ?? "—"} · sRPE ={" "}
                 {["attended", "rehabilitation"].includes(status) ? minutes : 0}{" "}
                 min ×{" "}
                 {["attended", "rehabilitation"].includes(status)
@@ -2473,12 +2401,12 @@ function CheckIn({
         </form>
       </section>
       <aside className="checkin-aside panel">
-        <span className="eyebrow">CONSISTENCY MATTERS</span>
+        <span className="eyebrow">{t.consistency}</span>
         <Heart size={42} />
         <h2>
-          Listen to your body.
+          {t.listenBody}
           <br />
-          Build your tomorrow.
+          {t.buildTomorrow}
         </h2>
         <p>{t.note}</p>
         <div className="privacy-note">
@@ -2542,7 +2470,7 @@ function SessionForm({
             try {
               const f = new FormData(e.currentTarget);
               if (String(f.get("end")) <= String(f.get("start")))
-                throw new Error("End time must follow start time");
+                throw new Error(t.endTimeError);
               const value: Omit<Session, "id"> = {
                 code: String(f.get("code")),
                 date: String(f.get("date")),
@@ -2571,9 +2499,7 @@ function SessionForm({
                     !ids.includes(e.athlete_id),
                 )
               )
-                throw new Error(
-                  "Cannot remove an athlete with a submitted response",
-                );
+                throw new Error(t.submittedAthleteError);
               const session = {
                 ...value,
                 id: existing?.id ?? crypto.randomUUID(),
@@ -2671,8 +2597,10 @@ function SessionForm({
               {t.type}
               <select name="type" defaultValue={existing?.type}>
                 {["Field", "Gym", "Rehabilitation", "Match", "Other"].map(
-                  (t) => (
-                    <option key={t}>{t}</option>
+                  (type) => (
+                    <option key={type} value={type}>
+                      {sessionTypeLabel(type, t)}
+                    </option>
                   ),
                 )}
               </select>
@@ -2757,7 +2685,7 @@ function SettingsView({
 }: {
   data: Dataset;
   t: Labels;
-  locale: string;
+  locale: Locale;
   demo: boolean;
   notify: (s: string) => void;
   onUpdate: Update;
@@ -2773,7 +2701,7 @@ function SettingsView({
           e.preventDefault();
           setBusy(true);
           try {
-            const errors = thresholdErrors(settings);
+            const errors = thresholdErrors(settings, t);
             if (errors.length) throw new Error(errors.join(" · "));
             if (!demo) {
               const r = await fetch("/api/settings", {
@@ -2938,11 +2866,9 @@ function SettingsView({
                 }))
               }
             >
-              <option value="coupled">Rolling · coupled (7 / 28 days)</option>
-              <option value="uncoupled">
-                Rolling · uncoupled (7 / preceding 28 days)
-              </option>
-              <option value="ewma">EWMA (7 / 28 days)</option>
+              <option value="coupled">{t.acwrCoupled}</option>
+              <option value="uncoupled">{t.acwrUncoupled}</option>
+              <option value="ewma">{t.acwrEwma}</option>
             </select>
           </label>
           <p className="muted">{t.note}</p>
@@ -2981,6 +2907,7 @@ function Medical({
   demo: boolean;
   notify: (s: string) => void;
 }) {
+  const { intlLocale } = useLanguage();
   const [notes, setNotes] = useState<
       { id: string; athlete_id: string; note: string; created_at: string }[]
     >([]),
@@ -3068,7 +2995,7 @@ function Medical({
             <strong>
               {data.athletes.find((a) => a.id === n.athlete_id)?.name}
             </strong>
-            <small>{new Date(n.created_at).toLocaleString()}</small>
+            <small>{new Date(n.created_at).toLocaleString(intlLocale)}</small>
             <p>{n.note}</p>
           </article>
         ))}

@@ -2,6 +2,8 @@
 import { useEffect, useState } from "react";
 import { Copy, Link2 } from "lucide-react";
 import type { Dataset, Role } from "@/lib/types";
+import { useLanguage } from "./language-provider";
+import { roleLabel } from "@/lib/i18n";
 type Invite = {
   id: string;
   email: string;
@@ -20,6 +22,7 @@ export default function Invitations({
   demo: boolean;
   notify: (s: string) => void;
 }) {
+  const { t } = useLanguage();
   const [invites, setInvites] = useState<Invite[]>([]),
     [role, setRole] = useState<Role>("athlete"),
     [link, setLink] = useState(""),
@@ -27,27 +30,23 @@ export default function Invitations({
   async function refresh() {
     const r = await fetch("/api/invitations");
     const j = await r.json();
-    if (!r.ok) throw new Error(j.error);
+    if (!r.ok) throw new Error(t.inviteLoadError);
     setInvites(j.invitations);
   }
   useEffect(() => {
-    if (!demo) refresh().catch((e) => notify(e.message));
+    if (!demo) refresh().catch(() => notify(t.inviteLoadError));
   }, [demo]);
   return (
     <section className="panel settings-panel invitations-panel">
       <div className="panel-heading">
         <h2>
-          <Link2 size={18} /> 選手・スタッフを招待
+          <Link2 size={18} /> {t.inviteTitle}
         </h2>
-        <span className="pill neutral">7日間有効</span>
+        <span className="pill neutral">{t.inviteExpiry}</span>
       </div>
-      <p className="muted">
-        メールアドレスと役割を指定してリンクを発行し、本人に共有してください。選手レコードを先に作成しておけば、アカウントを持たずコーチが代理入力する選手も登録できます。
-      </p>
+      <p className="muted">{t.inviteHelp}</p>
       {demo ? (
-        <p className="setup-note">
-          デモでは招待を発行しません。Supabase接続後に利用できます。
-        </p>
+        <p className="setup-note">{t.inviteDemo}</p>
       ) : (
         <form
           onSubmit={async (e) => {
@@ -72,12 +71,12 @@ export default function Invitations({
                 }),
               });
               const j = await r.json();
-              if (!r.ok) throw new Error(j.error);
+              if (!r.ok) throw new Error(t.inviteError);
               setLink(location.origin + "/join?token=" + j.token);
               await refresh();
-              notify("招待リンクを発行しました。ご本人に共有してください。");
+              notify(t.inviteCreated);
             } catch (e) {
-              notify(e instanceof Error ? e.message : "発行できませんでした");
+              notify(t.inviteError);
             } finally {
               setBusy(false);
             }
@@ -85,30 +84,30 @@ export default function Invitations({
         >
           <div className="form-grid">
             <label>
-              名前
+              {t.manageName}
               <input name="name" maxLength={100} required />
             </label>
             <label>
-              招待先メールアドレス
+              {t.inviteEmail}
               <input name="email" type="email" maxLength={254} required />
             </label>
             <label>
-              役割
+              {t.role}
               <select
                 value={role}
                 onChange={(e) => setRole(e.target.value as Role)}
               >
-                <option value="athlete">選手</option>
-                <option value="coach">コーチングスタッフ</option>
-                <option value="medical">メディカルスタッフ</option>
-                <option value="administrator">管理者</option>
+                <option value="athlete">{t.athlete}</option>
+                <option value="coach">{t.roleCoach}</option>
+                <option value="medical">{t.roleMedical}</option>
+                <option value="administrator">{t.roleAdministrator}</option>
               </select>
             </label>
             {role === "athlete" ? (
               <label>
-                本人の選手レコード
+                {t.athleteRecord}
                 <select name="athlete" required>
-                  <option value="">選択してください</option>
+                  <option value="">{t.choose}</option>
                   {data.athletes
                     .filter((a) => !a.user_id)
                     .map((a) => (
@@ -120,9 +119,9 @@ export default function Invitations({
               </label>
             ) : role !== "administrator" ? (
               <label>
-                担当チーム
+                {t.assignedTeam}
                 <select name="team" required>
-                  <option value="">選択してください</option>
+                  <option value="">{t.choose}</option>
                   {data.teams.map((t) => (
                     <option key={t.id} value={t.id}>
                       {t.name}
@@ -133,14 +132,14 @@ export default function Invitations({
             ) : null}
           </div>
           <button className="primary" disabled={busy}>
-            招待リンクを発行
+            {t.issueInvite}
           </button>
         </form>
       )}
       {link && (
         <div className="invite-link">
           <label>
-            本人に共有するリンク（発行時のみ表示）
+            {t.inviteLink}
             <input readOnly value={link} />
           </label>
           <button
@@ -148,12 +147,12 @@ export default function Invitations({
             onClick={() =>
               navigator.clipboard
                 .writeText(link)
-                .then(() => notify("コピーしました"))
-                .catch(() => notify("リンク欄を選択してコピーしてください。"))
+                .then(() => notify(t.copied))
+                .catch(() => notify(t.copyHelp))
             }
           >
             <Copy size={16} />
-            コピー
+            {t.copy}
           </button>
         </div>
       )}
@@ -162,10 +161,10 @@ export default function Invitations({
           <table>
             <thead>
               <tr>
-                <th>名前</th>
-                <th>メール</th>
-                <th>役割</th>
-                <th>状態</th>
+                <th>{t.manageName}</th>
+                <th>{t.email}</th>
+                <th>{t.role}</th>
+                <th>{t.status}</th>
                 <th />
               </tr>
             </thead>
@@ -174,15 +173,15 @@ export default function Invitations({
                 <tr key={i.id}>
                   <td>{i.name}</td>
                   <td>{i.email}</td>
-                  <td>{i.role}</td>
+                  <td>{roleLabel(i.role, t)}</td>
                   <td>
                     {i.accepted_at
-                      ? "参加済み"
+                      ? t.inviteAccepted
                       : i.revoked_at
-                        ? "取消済み"
+                        ? t.inviteRevoked
                         : new Date(i.expires_at) < new Date()
-                          ? "期限切れ"
-                          : "未参加"}
+                          ? t.inviteExpired
+                          : t.invitePending}
                   </td>
                   <td>
                     {!i.accepted_at && !i.revoked_at && (
@@ -197,19 +196,17 @@ export default function Invitations({
                               headers: { "Content-Type": "application/json" },
                               body: JSON.stringify({ id: i.id }),
                             });
-                            if (!r.ok) throw new Error("取り消せませんでした");
+                            if (!r.ok) throw new Error(t.inviteRevokeError);
                             setLink("");
                             await refresh();
                           } catch (e) {
-                            notify(
-                              e instanceof Error ? e.message : "失敗しました",
-                            );
+                            notify(t.inviteRevokeError);
                           } finally {
                             setBusy(false);
                           }
                         }}
                       >
-                        招待を取り消す
+                        {t.revokeInvite}
                       </button>
                     )}
                   </td>

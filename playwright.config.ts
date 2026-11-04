@@ -1,6 +1,7 @@
 import { defineConfig } from "@playwright/test";
 export default defineConfig({
   testDir: "./tests/e2e",
+  outputDir: "./test-results/demo",
   webServer:
     !process.env.CI && !process.env.PLAYWRIGHT_BASE_URL
       ? {

@@ -62,6 +62,6 @@ test("coach can proxy morning wellness, pain and RPE for assigned team", async (
   );
   await page.getByRole("button", { name: "一括取り込み", exact: true }).click();
   await expect(
-    page.getByLabel("Import type").locator('option[value="wellness"]'),
+    page.getByLabel("取り込み種別").locator('option[value="wellness"]'),
   ).toHaveCount(1);
 });

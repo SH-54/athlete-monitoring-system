@@ -33,7 +33,7 @@ test("XLSX proxy import saves three independent sessions as 780 AU, preserving e
     minutes: [70, 50, 30][i],
     rpe: [4, 7, 5][i],
   }));
-  await page.getByLabel("Import file").setInputFiles({
+  await page.getByLabel("导入文件").setInputFiles({
     name: "three-sessions.xlsx",
     mimeType:
       "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
@@ -69,17 +69,17 @@ test("spreadsheet paste rejects duplicate and unknown-session rows without savin
   const s = sessions[0];
   const head = "athlete_id\tteam_id\tdate\tsession_id\tminutes\trpe";
   const row = `${athlete.id}\t${s.team_id}\t${date}\t${s.id}\t70\t4`;
-  await page.getByLabel("Paste spreadsheet").fill([head, row, row].join("\n"));
+  await page.getByLabel("粘贴表格").fill([head, row, row].join("\n"));
   await page.getByRole("button", { name: "预览粘贴数据", exact: true }).click();
-  await expect(page.locator(".import-errors")).toContainText("Duplicate");
+  await expect(page.locator(".import-errors")).toContainText("重复");
   await expect(
     page.getByRole("button", { name: "确认并保存导入", exact: true }),
   ).toBeDisabled();
   await page
-    .getByLabel("Paste spreadsheet")
+    .getByLabel("粘贴表格")
     .fill([head, row.replace(s.id, "UNKNOWN")].join("\n"));
   await page.getByRole("button", { name: "预览粘贴数据", exact: true }).click();
-  await expect(page.locator(".import-errors")).toContainText("session");
+  await expect(page.locator(".import-errors")).toContainText("训练");
   await expect(
     page.getByRole("button", { name: "确认并保存导入", exact: true }),
   ).toBeDisabled();

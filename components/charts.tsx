@@ -30,6 +30,7 @@ import {
 } from "@/lib/analytics";
 import type { Dataset, Athlete } from "@/lib/types";
 import type { Labels } from "@/lib/i18n";
+import { useLanguage } from "./language-provider";
 export default function Charts({
   data,
   athletes,
@@ -47,6 +48,18 @@ export default function Charts({
   selected: string;
   t: Labels;
 }) {
+  const { number } = useLanguage();
+  const finding = (a: ReturnType<typeof alerts>[number]) => {
+    const labels: Record<string, string> = {
+      sleep: t.sleepAlert,
+      pain: t.painAlert,
+      fatigue: t.fatigueAlert,
+      load: t.loadAlert,
+      weight: t.weightAlert,
+      baseline: t.baseline,
+    };
+    return `${labels[a.kind] ?? a.kind}: ${a.value}`;
+  };
   const subject =
     selected === "all" ? athletes : athletes.filter((a) => a.id === selected);
   const days = [];
@@ -68,14 +81,14 @@ export default function Charts({
       selected === "all"
         ? []
         : subject[0]
-          ? alerts(data, subject[0], d).map((a) => `${a.kind}: ${a.value}`)
+          ? alerts(data, subject[0], d, t).map(finding)
           : [],
   }));
   const bars = subject.map((a) => ({
     name: a.name,
     risk: loadFlag(dailyLoad(data, a.id, date), data.settings),
     overall: flagLevel(data, a, date),
-    reasons: alerts(data, a, date).map((a) => `${a.kind}: ${a.value}`),
+    reasons: alerts(data, a, date, t).map(finding),
     load: dailyLoad(data, a.id, date),
     fatigue: data.wellness.find((w) => w.athlete_id === a.id && w.date === date)
       ?.fatigue,
@@ -140,7 +153,7 @@ export default function Charts({
   const riskRows = subject.map((a) => ({
     athlete: a,
     level: flagLevel(data, a, date),
-    findings: alerts(data, a, date),
+    findings: alerts(data, a, date, t),
   }));
   const loadReferences = (
     <>
@@ -188,7 +201,7 @@ export default function Charts({
       >
         <strong>{row.name ?? label}</strong>
         <p>
-          {t.load}: {row.load === null ? "—" : Number(row.load).toFixed(0)} AU
+          {t.load}: {number(row.load === null ? null : Number(row.load))} AU
         </p>
         {row.risk && (
           <p style={{ color: flagColors[row.risk as keyof typeof flagColors] }}>
@@ -275,7 +288,7 @@ export default function Charts({
       <section className="panel chart-wide">
         <div className="panel-heading">
           <div>
-            <span className="eyebrow">TRAINING INTELLIGENCE</span>
+            <span className="eyebrow">{t.trainingIntelligence}</span>
             <h3>{t.loadTrend}</h3>
           </div>
           <span className="pill neutral">AU</span>

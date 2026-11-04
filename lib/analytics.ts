@@ -1,4 +1,5 @@
 import type { Dataset, Athlete, Settings } from "./types";
+import type { Labels } from "./i18n";
 /** Team reporting date; never derive it from the execution host timezone. */
 export const isoDate = (d: Date, timeZone = "Asia/Shanghai") =>
   new Intl.DateTimeFormat("en-CA", {
@@ -92,7 +93,12 @@ export function loadMetrics(
     acwr: numerator === null || !denominator ? null : numerator / denominator,
   };
 }
-export function alerts(data: Dataset, athlete: Athlete, date: string) {
+export function alerts(
+  data: Dataset,
+  athlete: Athlete,
+  date: string,
+  t?: Labels,
+) {
   const w = data.wellness.find(
       (x) => x.athlete_id === athlete.id && x.date === date,
     ),
@@ -177,7 +183,7 @@ export function alerts(data: Dataset, athlete: Athlete, date: string) {
     if (drop >= s.sleepQualityDrop)
       result.push({
         kind: "sleep",
-        value: `Δ quality ${drop.toFixed(1)} ≥ ${s.sleepQualityDrop}`,
+        value: `Δ ${t?.quality ?? "quality"} ${drop.toFixed(1)} ≥ ${s.sleepQualityDrop}`,
         level: "warning",
       });
   }
@@ -195,7 +201,7 @@ export function alerts(data: Dataset, athlete: Athlete, date: string) {
     )
       result.push({
         kind: "pain",
-        value: `${pain.body_part}: new ${pain.severity}/10 ≥ ${s.newPainMin}`,
+        value: `${pain.body_part}: ${t?.newPainLabel ?? "new"} ${pain.severity}/10 ≥ ${s.newPainMin}`,
         level: "warning",
       });
   }
@@ -260,14 +266,21 @@ export const flagColors: Record<FlagLevel, string> = {
 };
 
 /** Shared with settings form and server validation to prevent reversed severity bands. */
-export function thresholdErrors(settings: Settings): string[] {
+export function thresholdErrors(settings: Settings, t?: Labels): string[] {
   const errors: string[] = [];
   if (settings.sleepRedMin > settings.sleepMin)
-    errors.push("Red sleep threshold must be at or below yellow.");
+    errors.push(
+      t?.thresholdSleepError ??
+        "Red sleep threshold must be at or below yellow.",
+    );
   if (settings.painRedMin < settings.painMin)
-    errors.push("Red pain threshold must be at or above yellow.");
+    errors.push(
+      t?.thresholdPainError ?? "Red pain threshold must be at or above yellow.",
+    );
   if (settings.loadRedMax <= settings.loadMax)
-    errors.push("Red load threshold must be above yellow.");
+    errors.push(
+      t?.thresholdLoadError ?? "Red load threshold must be above yellow.",
+    );
   const scale = settings.scales.fatigue;
   if (
     settings.fatigueMax < scale.min ||
@@ -275,7 +288,10 @@ export function thresholdErrors(settings: Settings): string[] {
     settings.fatigueRed < scale.min ||
     settings.fatigueRed > scale.max
   )
-    errors.push("Fatigue thresholds must be within the configured scale.");
+    errors.push(
+      t?.thresholdFatigueRangeError ??
+        "Fatigue thresholds must be within the configured scale.",
+    );
   if (
     (scale.direction === "higher_worse" &&
       settings.fatigueRed < settings.fatigueMax) ||
@@ -283,7 +299,8 @@ export function thresholdErrors(settings: Settings): string[] {
       settings.fatigueRed > settings.fatigueMax)
   )
     errors.push(
-      "Red fatigue threshold must be at least as severe as yellow in the configured scale direction.",
+      t?.thresholdFatigueDirectionError ??
+        "Red fatigue threshold must be at least as severe as yellow in the configured scale direction.",
     );
   return errors;
 }

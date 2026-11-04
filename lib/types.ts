@@ -1,5 +1,5 @@
 export type Role = "administrator" | "coach" | "medical" | "athlete";
-export type Locale = "zh" | "ja" | "en";
+export type { Locale } from "./locales";
 export type Attendance =
   | "pending"
   | "attended"

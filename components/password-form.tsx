@@ -1,36 +1,44 @@
 "use client";
 import { useState } from "react";
 import { createBrowserClient } from "@supabase/ssr";
+import AuthShell from "./auth-shell";
+import { useLanguage } from "./language-provider";
+import { authErrorKey } from "@/lib/localized-errors";
+import type { Labels } from "@/lib/i18n";
+
 export default function PasswordForm() {
-  const [busy, setBusy] = useState(false),
-    [message, setMessage] = useState("");
+  const { t } = useLanguage();
+  const [busy, setBusy] = useState(false);
+  const [notice, setNotice] = useState<keyof Labels | null>(null);
   return (
-    <main className="login">
+    <AuthShell>
+      <h1>{t.newPassword}</h1>
       <form
-        className="panel login-card"
-        onSubmit={async (e) => {
-          e.preventDefault();
+        onSubmit={async (event) => {
+          event.preventDefault();
+          setNotice(null);
+          const form = new FormData(event.currentTarget);
+          if (form.get("password") !== form.get("confirm")) {
+            setNotice("passwordMismatch");
+            return;
+          }
           setBusy(true);
-          const f = new FormData(e.currentTarget);
           try {
-            if (f.get("password") !== f.get("confirm"))
-              throw new Error("パスワードが一致しません。");
             const { error } = await createBrowserClient(
               process.env.NEXT_PUBLIC_SUPABASE_URL!,
               process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!,
-            ).auth.updateUser({ password: String(f.get("password")) });
+            ).auth.updateUser({ password: String(form.get("password")) });
             if (error) throw error;
-            setMessage("パスワードを変更しました。チーム画面に戻れます。");
-          } catch (e) {
-            setMessage(e instanceof Error ? e.message : "変更できませんでした");
+            setNotice("passwordChanged");
+          } catch (error) {
+            setNotice(authErrorKey(error));
           } finally {
             setBusy(false);
           }
         }}
       >
-        <h1>新しいパスワード</h1>
         <label>
-          パスワード（10文字以上）
+          {t.passwordMin}
           <input
             type="password"
             name="password"
@@ -41,7 +49,7 @@ export default function PasswordForm() {
           />
         </label>
         <label>
-          もう一度入力
+          {t.confirmPassword}
           <input
             type="password"
             name="confirm"
@@ -51,18 +59,18 @@ export default function PasswordForm() {
             required
           />
         </label>
-        {message && (
+        {notice && (
           <p className="auth-message" role="status">
-            {message}
+            {t[notice]}
           </p>
         )}
         <button className="primary" disabled={busy}>
-          変更する
+          {busy ? t.busy : t.changePassword}
         </button>
-        <a className="secondary" href="/">
-          チーム画面へ
-        </a>
       </form>
-    </main>
+      <a className="secondary" href="/">
+        {t.teamHome}
+      </a>
+    </AuthShell>
   );
 }
