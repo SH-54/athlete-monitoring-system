@@ -10,6 +10,8 @@ for attempt in $(seq 1 30); do
  if docker_local exec "$container" pg_isready -h 127.0.0.1 -U postgres >/dev/null 2>&1; then break; fi
  sleep 1
 done
-for file in tests/rls-bootstrap.sql supabase/migrations/*.sql tests/rls.sql tests/import-rls.sql tests/security-rls.sql tests/live-workflow-rls.sql; do
+schema_files=(supabase/migrations/*.sql)
+if [[ -n "${ATHLOS_SCHEMA_FILE:-}" ]]; then schema_files=("$ATHLOS_SCHEMA_FILE"); fi
+for file in tests/rls-bootstrap.sql "${schema_files[@]}" tests/rls.sql tests/import-rls.sql tests/security-rls.sql tests/live-workflow-rls.sql; do
  docker_local exec -i "$container" psql -U postgres -v ON_ERROR_STOP=1 < "$file"
 done

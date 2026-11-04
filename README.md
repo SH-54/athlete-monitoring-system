@@ -32,7 +32,7 @@ npm run dev
 
 ## Supabase 接続
 
-1. Supabase プロジェクトを用意し、`supabase/migrations/` のSQLを番号順に適用します。SQL Editor、または Supabase CLI の `supabase db push` を使用します。
+1. このアプリ専用の空のSupabaseプロジェクトを用意し、SQL Editorで [supabase/install.sql](supabase/install.sql) の全文を1回実行します。初回設定済みのプロジェクトには、`supabase/migrations/` の未適用分だけを番号順に適用してください。Supabase CLIで管理する場合は `supabase db push` を使用し、初回一括ファイルとの二重適用を避けてください。
 2. `.env.example` を参考に、環境設定または未追跡の `.env.local` に以下を設定します。
    - `NEXT_PUBLIC_SUPABASE_URL`
    - `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`（公開可能な publishable key。service role key は使用しません）

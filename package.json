@@ -9,7 +9,8 @@
     "typecheck": "tsc --noEmit",
     "test": "node --import tsx scripts/run-unit-tests.mjs",
     "test:e2e": "playwright test",
-    "test:rls": "bash scripts/test-rls.sh"
+    "test:rls": "bash scripts/test-rls.sh",
+    "db:bundle": "node scripts/prepare-supabase.mjs"
   },
   "dependencies": {
     "@supabase/ssr": "^0.8.0",

@@ -4,8 +4,8 @@
 
 ## 1. Supabaseを接続する
 
-1. Supabaseでプロジェクトを作成します。
-2. `supabase/migrations/` のSQLを001〜006の順で適用します。既に001〜005を適用したプロジェクトには006だけを適用します。
+1. Supabaseで、このアプリ専用の空のプロジェクト `athlete-monitoring-system` を作成します。Evidence Atlasの既存プロジェクトとは分けます。
+2. 新しいプロジェクトのSQL Editorで、[supabase/install.sql](supabase/install.sql) の全文を貼り付けてRunします。初回専用で、001〜006を1つのトランザクションで適用します。エラーがあれば全体が取り消されます。既に設定済みのプロジェクトでは、このファイルを再実行せず `supabase/migrations/` の未適用分だけを番号順に適用します。既に001〜005を適用したプロジェクトには006だけを適用します。
 3. 公開先の環境変数に以下を設定します。実際の値やパスワードをGitに保存しないでください。
 
 | 変数 | 内容 |
@@ -18,6 +18,8 @@
 5. 公開URLが決まったら、Supabase Auth URL ConfigurationのSite URLに公開URL、Redirect URLsに `https://公開ホスト/auth/callback` を登録します。公開先のプレビューURLを使う場合も、使うURLを明示的に追加します。
 
 本番でDB設定が不足している場合、アプリは「接続設定が必要です」を表示し、保存されないデモを自動で出しません。デモを意図的に公開する場合のみ `ATHLOS_DEMO_MODE=true` とします。実データをデモへ入力しないでください。
+
+`install.sql` は `npm run db:bundle` でマイグレーションから再生成します。通常のマイグレーション適用と初回一括適用は、どちらか一方を使用します。開発用の分離DBで一括適用を検証する場合は、`ATHLOS_SCHEMA_FILE=supabase/install.sql npm run test:rls` を実行します（Docker必須）。
 
 ## 2. 無料枠で公開する（Netlify Free）
 
