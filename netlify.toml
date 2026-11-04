@@ -1,0 +1,9 @@
+# Free-plan deployment: choose Netlify Free in the dashboard.
+# Next.js Runtime is installed automatically by Netlify.
+[build]
+  command = "npm run build"
+  publish = ".next"
+
+[build.environment]
+  NODE_VERSION = "24"
+  ATHLOS_DEMO_MODE = "false"
