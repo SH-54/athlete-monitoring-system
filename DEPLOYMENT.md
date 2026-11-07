@@ -1,6 +1,8 @@
 # チームで使い始める手順
 
-公開には、データ保存用のSupabaseプロジェクトと、Next.jsを稼働させる公開先（無料枠での運用：Netlify Free）が必要です。このクラウド環境の起動やPublishだけでは、選手が携帯で開ける公開URLは作られません。
+中国本土・VPNなしでの運用を本番要件とします。推奨する国内構成、保存先の共通化、費用と公開手続きの確認事項は [中国向け運用方針](docs/CHINA_DEPLOYMENT.md) を参照してください。国内移行と現地回線試験は未実施です。
+
+以下のSupabase Cloud＋Netlify Freeは既存の公開構成の手順です。中国本土での接続や本番運用を保証するものではありません。このクラウド開発環境の起動やPublishだけでは、利用者向けの本番環境は構築されません。
 
 ## 1. Supabaseを接続する
 
@@ -21,7 +23,7 @@
 
 `install.sql` は `npm run db:bundle` でマイグレーションから再生成します。通常のマイグレーション適用と初回一括適用は、どちらか一方を使用します。開発用の分離DBで一括適用を検証する場合は、`ATHLOS_SCHEMA_FILE=supabase/install.sql npm run test:rls` を実行します（Docker必須）。
 
-## 2. 無料枠で公開する（Netlify Free）
+## 2. 既存の無料公開構成（Netlify Free）
 
 1. [Netlify](https://app.netlify.com/signup)に登録し、Freeプランを選びます。支払いを必要とするProや追加クレジット、auto rechargeは有効にしません。プラン確定時に料金・上限の表示を確認します。
 2. このソースをGitHubリポジトリへ保存し、Netlifyで使用ブランチをImportします。

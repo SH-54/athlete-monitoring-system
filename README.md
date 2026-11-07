@@ -1,4 +1,4 @@
-無料枠での公開設定は `netlify.toml` に用意しています。Supabase Free＋Netlify Freeと無料サブドメインで始め、超過時の利用制限を許容する方針です。詳細は [DEPLOYMENT.md](DEPLOYMENT.md) を参照してください。
+中国本土のスタッフ・選手がVPNなしで利用できることを本番要件とします。国内Web・DB・認証・ファイルをまとめる構成案と未確認事項は [中国向け運用方針](docs/CHINA_DEPLOYMENT.md) にまとめています。国内移行と現地回線試験はまだ実施していません。既存のSupabase Cloud＋Netlify Freeの公開設定は `netlify.toml` に残していますが、中国本土での本番利用に合格した構成とは扱いません。
 
 本番の公開・招待・本人入力・コーチ代理入力の手順は [DEPLOYMENT.md](DEPLOYMENT.md) を参照してください。
 
